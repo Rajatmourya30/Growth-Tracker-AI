@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DailyLog, Transaction, MindLog, AppSection } from '../types';
 import { analyzeWeeklyProgress, analyzeMoneyProgress, analyzeMindProgress } from '../services/geminiService';
-import { Bot, Lightbulb, TrendingUp, Loader2 } from 'lucide-react';
+import { Bot, Lightbulb, TrendingUp, Loader2, X, Copy, Check } from 'lucide-react';
 
 interface AIInsightsProps {
   section: AppSection;
@@ -12,6 +12,7 @@ const AIInsights: React.FC<AIInsightsProps> = ({ section, data }) => {
   const [analysis, setAnalysis] = useState<{ summary: string; tips: string[] } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Reset analysis when section changes
   useEffect(() => {
@@ -37,11 +38,28 @@ const AIInsights: React.FC<AIInsightsProps> = ({ section, data }) => {
       }
       
       setAnalysis(result || null);
-    } catch (e) {
-      setError("Failed to generate analysis. Please try again.");
+    } catch (e: any) {
+      if (e.message && e.message.includes("API Key is missing")) {
+        setError("API Key missing. Please check your settings.");
+      } else {
+        setError("Failed to generate analysis. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
+  };
+
+  const removeTip = (index: number) => {
+    if (!analysis) return;
+    const newTips = analysis.tips.filter((_, i) => i !== index);
+    setAnalysis({ ...analysis, tips: newTips });
+  };
+
+  const copySummary = () => {
+    if (!analysis) return;
+    navigator.clipboard.writeText(analysis.summary);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const getTitle = () => {
@@ -101,19 +119,28 @@ const AIInsights: React.FC<AIInsightsProps> = ({ section, data }) => {
       </div>
 
       {error && (
-        <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100">
-          {error}
+        <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 flex items-center gap-2">
+          <span className="font-bold">Error:</span> {error}
         </div>
       )}
 
       {analysis && (
         <div className="grid gap-6 md:grid-cols-3">
-          <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp className={`
-                ${section === 'MUSCLE' ? 'text-blue-600' : section === 'MONEY' ? 'text-emerald-600' : 'text-amber-600'}
-              `} />
-              <h3 className="text-lg font-bold text-slate-800">Summary</h3>
+          <div className="md:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-slate-100 relative group">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className={`
+                        ${section === 'MUSCLE' ? 'text-blue-600' : section === 'MONEY' ? 'text-emerald-600' : 'text-amber-600'}
+                    `} />
+                    <h3 className="text-lg font-bold text-slate-800">Summary</h3>
+                </div>
+                <button 
+                    onClick={copySummary}
+                    className="text-slate-400 hover:text-slate-600 transition-colors p-1 rounded-md hover:bg-slate-100"
+                    title="Copy Summary"
+                >
+                    {copied ? <Check size={18} className="text-emerald-500" /> : <Copy size={18} />}
+                </button>
             </div>
             <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">
               {analysis.summary}
@@ -125,20 +152,31 @@ const AIInsights: React.FC<AIInsightsProps> = ({ section, data }) => {
               <Lightbulb className="text-amber-500" />
               <h3 className="text-lg font-bold text-slate-800">Actionable Tips</h3>
             </div>
-            <ul className="space-y-4">
-              {analysis.tips.map((tip, idx) => (
-                <li key={idx} className="flex gap-3">
-                  <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                      section === 'MUSCLE' ? 'bg-indigo-100 text-indigo-700' :
-                      section === 'MONEY' ? 'bg-emerald-100 text-emerald-700' :
-                      'bg-orange-100 text-orange-700'
-                  }`}>
-                    {idx + 1}
-                  </span>
-                  <p className="text-sm text-slate-600">{tip}</p>
-                </li>
-              ))}
-            </ul>
+            {analysis.tips.length > 0 ? (
+                <ul className="space-y-4">
+                {analysis.tips.map((tip, idx) => (
+                    <li key={idx} className="flex gap-3 items-start group">
+                    <span className={`flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
+                        section === 'MUSCLE' ? 'bg-indigo-100 text-indigo-700' :
+                        section === 'MONEY' ? 'bg-emerald-100 text-emerald-700' :
+                        'bg-orange-100 text-orange-700'
+                    }`}>
+                        {idx + 1}
+                    </span>
+                    <p className="text-sm text-slate-600 flex-1">{tip}</p>
+                    <button 
+                        onClick={() => removeTip(idx)}
+                        className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-500 transition-all"
+                        title="Remove Tip"
+                    >
+                        <X size={14} />
+                    </button>
+                    </li>
+                ))}
+                </ul>
+            ) : (
+                <p className="text-sm text-slate-400 italic">No tips remaining.</p>
+            )}
           </div>
         </div>
       )}

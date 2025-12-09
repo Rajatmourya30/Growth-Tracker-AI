@@ -1,10 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { DailyLog, Transaction, MindLog } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Lazy load the client to prevent crashes if API key is missing on load
+const getAiClient = () => {
+  const apiKey = process.env.API_KEY || '';
+  if (!apiKey) {
+    throw new Error("API Key is missing. Please set VITE_API_KEY in your environment variables.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 export const parseNaturalLanguageLog = async (text: string): Promise<Partial<DailyLog>> => {
   try {
+    const ai = getAiClient();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: `Extract fitness data from this text into a JSON object.
@@ -51,6 +59,7 @@ export const calculateNutrition = async (foodDescription: string): Promise<{
   fiber: number;
 }> => {
   try {
+    const ai = getAiClient();
     // Using gemini-3-pro-preview for better reasoning on messy text/brands
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
@@ -89,10 +98,16 @@ export const calculateNutrition = async (foodDescription: string): Promise<{
 
 export const analyzeWeeklyProgress = async (logs: DailyLog[]): Promise<{ summary: string; tips: string[] }> => {
   try {
+    const ai = getAiClient();
     const dataStr = JSON.stringify(logs);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Analyze this fitness data for a week. Provide a summary of progress (weight trend, adherence, water intake, nutrition balance) and 3 specific actionable tips for next week.
+      contents: `Act as an Elite Fitness Coach. Analyze this fitness data for a week. 
+      Focus on Progressive Overload, Recovery Efficiency, and Macro Adherence.
+      
+      1. Provide a "No Fluff" summary of their physical adaptation.
+      2. Provide 3 specific, technical, and actionable tips (e.g., "Increase protein by 10g post-workout", "Sleep debt detected, add 30min tonight").
+      
       Data: ${dataStr}`,
       config: {
         responseMimeType: "application/json",
@@ -121,13 +136,16 @@ export const analyzeWeeklyProgress = async (logs: DailyLog[]): Promise<{ summary
 
 export const analyzeMoneyProgress = async (transactions: Transaction[]): Promise<{ summary: string; tips: string[] }> => {
   try {
+    const ai = getAiClient();
     const dataStr = JSON.stringify(transactions);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Analyze this financial transaction data.
-      1. Summarize spending habits, major expense categories, and income vs expense flow.
-      2. Identify specific unnecessary spending or opportunities for saving.
-      3. Provide 3 concrete, actionable financial tips based on this data.
+      contents: `Act as a Financial Strategist. Analyze this transaction data.
+      
+      1. Summarize cash flow velocity. Are they leaking money on small things? Is the savings rate healthy?
+      2. Identify specific "Lifestyle Inflation" or unnecessary categorical spending.
+      3. Provide 3 ruthless, actionable tips to increase Net Worth velocity (e.g., "Cut dining budget by 15% to fund X").
+      
       Data: ${dataStr}`,
       config: {
         responseMimeType: "application/json",
@@ -156,13 +174,16 @@ export const analyzeMoneyProgress = async (transactions: Transaction[]): Promise
 
 export const analyzeMindProgress = async (logs: MindLog[]): Promise<{ summary: string; tips: string[] }> => {
   try {
+    const ai = getAiClient();
     const dataStr = JSON.stringify(logs);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
-      contents: `Analyze this mental wellness data (Mind Score, Meditation, Reading, Screen Time).
-      1. Look for correlations (e.g., does high screen time lower mind score? does meditation help?).
-      2. Summarize the user's mental state and habit consistency.
-      3. Provide 3 actionable tips to improve mental clarity and reduce digital fatigue.
+      contents: `Act as a High-Performance Psychologist. Analyze this mental wellness data.
+      
+      1. Look for Dopamine triggers. Does high screen time correlate with lower Mind Scores?
+      2. Analyze the 'Deep Work' ratio (Reading/Meditation vs Screen Time).
+      3. Provide 3 scientific, habit-based tips to induce Flow State and reduce mental fog.
+      
       Data: ${dataStr}`,
       config: {
         responseMimeType: "application/json",
