@@ -63,7 +63,7 @@ const MindDashboard: React.FC<MindDashboardProps> = ({ logs }) => {
     // Top App Logic
     const allApps = recentLogs.map(l => l.topApps).join(',').split(',').map(s => s.trim()).filter(Boolean);
     const appCounts = allApps.reduce((acc, app) => { acc[app] = (acc[app] || 0) + 1; return acc; }, {} as Record<string, number>);
-    const topApp = Object.entries(appCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || 'None';
+    const topApp = Object.entries(appCounts).sort((a, b) => Number(b[1]) - Number(a[1]))[0]?.[0] || 'None';
 
     const h = Math.floor(avgScreenTime / 60);
     const m = Math.round(avgScreenTime % 60);
